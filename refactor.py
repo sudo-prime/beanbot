@@ -31,22 +31,16 @@ class Command:
             # Command must have at least len(criteria) tokens.
             raise InvalidCommandException
         
-        # Use case acceptance criteria.
-        for index in range(len(types)):
-            for criteria in validationCriteria[index]:
-                try:
-                    if not criteria(tokens[index+1]):
-                        raise InvalidCommandException
-                except Exception:
-                    raise InvalidCommandException
-        
-        # Types are verified, now parse and store tokens.
+        # Parse into arguments.
         self.arguments = []
-        for index in range(len(types)):
-            if types[index] != None:
-                self.arguments.append(types[index+1](tokens[index]))
-            else:
-                self.arguments.append(tokens[index+1])
+        for index in range(1, len(types)):
+            try:
+                if not criteria(tokens[index]):
+                    raise InvalidCommandException
+                else:
+                    self.arguments.append(types[index](tokens[index]))
+            except Exception:
+                raise InvalidCommandException
 
 async def send(location, message):
     global client
