@@ -3,12 +3,12 @@ import json
 import re
 
 responses = {
-    "nouser": 'The specified user is not a user on this server.',
-    "!transfer": {
-        "usage": 'Please enter an amount followed by a mention to the recipient.\nex. `!transfer <amount> <mention>`',
-        "nofunds": 'You do not have enough beans to complete the transaction.',
-        "posamt": 'Please specify a positive transfer amount.',
-        "success": 'Transaction completed successfully. You now have {} beans in your account. {}'
+    'nouser': 'The specified user is not a user on this server.',
+    '!transfer': {
+        'usage': 'Please enter an amount followed by a mention to the recipient.\nex. `!transfer <amount> <mention>`',
+        'nofunds': 'You do not have enough beans to complete the transaction.',
+        'posamt': 'Please specify a positive transfer amount.',
+        'success': 'Transaction completed successfully. You now have {} beans in your account. {}'
     }
 }
 
@@ -45,9 +45,9 @@ class Command:
         
         # Parse into arguments.
         self.args = []
-        for index in range(1, len(types)):
+        for index in range(0, len(types)):
             try:
-                self.args.append(types[index](tokens[index]))
+                self.args.append(types[index](tokens[index+1]))
             except:
                 raise InvalidCommandException(responses[tokens[0]]['usage'])
 
@@ -57,15 +57,14 @@ async def send(location, message):
 
 async def verifyValidUser(mention):
     global client
-    userID = re.sub("<|>|@|!", "", mention)
     try:
-        await client.get_user_info(userID)
+        await client.get_user_info(usrid(mention))
         return True
     except discord.NotFound:
         return False
 
 def usrid(mention):
-    userID = re.sub("<|>|@|!", "", str(mention))
+    userID = re.sub('<|>|@|!', '', str(mention))
     return userID
 
 with open('../TOKEN') as tokenFile:
@@ -103,14 +102,30 @@ async def on_message(message):
             amount = command.args[0]
             ledger.addNewUser(command.sender.id)
             if amount > ledger.data[sender]['balance']: raise InvalidCommandException(responses['!transfer']['nofunds'])
-            if amount > 0: raise InvalidCommandException(responses['!transfer']['posamt'])
+            if amount <= 0: raise InvalidCommandException(responses['!transfer']['posamt'])
             if not await verifyValidUser(recipient): raise InvalidCommandException(responses['nouser'])
             ledger.addNewUser(recipient)
-            ledger.data[sender]    -= amount
-            ledger.data[recipient] += amount
-            await send(message.channel, responses["success"].format(ledger.data[sender], "(Hey, thanks!)" if recipient == "512696929973698582" else ""))
+            ledger.data[sender]['balance']    -= amount
+            ledger.data[recipient]['balance'] += amount
+            await send(message.channel, responses['!transfer']['success'].format(ledger.data[sender]['balance'], '(Hey, thanks!)' if recipient == '512696929973698582' else ''))
         except InvalidCommandException as e:
             await send(message.channel, e.value)
+    
+    if message.content.startswith('!top'):
+        try:
+            beans = [(await client.get_user_info(key), ledger.data[key]['balance']) for key in ledger.data]
+            top = sorted(beans, key=lambda tup: tup[1], reverse=True)
+            msg = 'Here\'s the leaderboard:```'
+            for i in range(0, 5):
+                if i < len(top):
+                    user = top[i]
+                    msg += '\n{}. {}: {} beans'.format(i+1, user[0].name, user[1])
+            msg += '```'
+            await send(message.channel, msg)
+        except InvalidCommandException as e:
+            pass
+
+    ledger.write()
 
 @client.event
 async def on_ready():
