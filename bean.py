@@ -3,20 +3,21 @@ import json
 import re
 
 responses = {
-    'nouser': 'The specified user is not a user on this server.',
-    'notbot': 'Only bots can use this command.',
+    'nouser': '**{}**, the specified user is not a user on this server.',
+    'notbot': '**{}**, only bots can use this command.',
     'hacker': 'Nice try.',
-    'posamt': 'Please specify a positive amount.',
+    'posamt': '**{}**, please specify a positive amount.',
+    'balance':'**{}**, your balance is {} beans.',
     '!transfer': {
-        'usage': 'Please enter an amount followed by a mention to the recipient.\nex. `!transfer <amount> <mention>`',
-        'nofunds': 'You do not have enough beans to complete the transaction.',
-        'success': 'Transaction completed successfully. You now have {} beans in your account. {}'
+        'usage': '**{}**, lease enter an amount followed by a mention to the recipient.\nex. `!transfer <amount> <mention>`',
+        'nofunds': '**{}**, you do not have enough beans to complete the transaction.',
+        'success': '**{}**, the transaction was completed successfully. \nYou now have {} beans in your account. {}'
     },
     '!reward': {
-        'usage': '2,bad_args'
+        'usage': '2,bad_args,{}'
     },
     '!request': {
-        'usage': '2,bad_args'
+        'usage': '2,bad_args,{}'
     }
 }
 
@@ -51,7 +52,7 @@ class Command:
         # Baseline acceptance criteria
         if len(types) > len(tokens)-1:
             # Command must have at least len(criteria) tokens.
-            raise InvalidCommandException(responses[tokens[0]]['usage'], location)
+            raise InvalidCommandException(responses[tokens[0]]['usage'].format(self.sender.name), location)
         
         # Parse into arguments.
         self.args = []
@@ -59,11 +60,16 @@ class Command:
             try:
                 self.args.append(types[index](tokens[index+1]))
             except:
-                raise InvalidCommandException(responses[tokens[0]]['usage'], location)
+                raise InvalidCommandException(responses[tokens[0]]['usage'].format(self.sender.name), location)
 
 async def send(location, message):
     global client
     await client.send_message(location, message)
+
+async def sendRich(location, message, color=0x22dd22):
+    global client
+    embed = discord.Embed(title="", description=message, color=color)
+    await client.send_message(location, embed=embed)
 
 async def verifyValidUser(mention):
     global client
@@ -89,7 +95,8 @@ async def on_message(message):
     # Ignore messages sent by beanbot.
     if message.author == client.user:
         return
-    print(str(message.content))
+    # DEBUG
+    #print(str(message.content))
 
     # Open the ledger for reading and modification.
     ledger = Ledger()
@@ -99,44 +106,46 @@ async def on_message(message):
             # Command !balance takes no vaildation criteria,
             # and has no anticipated types.
             command = Command(message, [])
-            ledger.addNewUser(command.sender.id)
-            balance = ledger.data[command.sender.id]['balance']
-            await send(message.channel, 'Your balance is {} beans.'.format(balance))
+            sender = command.sender
+            ledger.addNewUser(sender.id)
+            balance = ledger.data[sender.id]['balance']
+            await sendRich(message.channel, responses['balance'].format(sender.name, balance))
         except InvalidCommandException as e:
-            # This command literally cannot be invalid
+            # This command literally cannot be invalid.
             print(e.value, 'This shouldn\'t have errored!')
             pass
     
     if message.content.startswith('!transfer'):
         try:
+            # Anticipate !transfer <int> <user mention>
             command = Command(message, [int, usrid])
             sender = command.sender
             recipient = command.args[1]
             amount = command.args[0]
             ledger.addNewUser(command.sender.id)
-            if amount > ledger.data[sender.id]['balance']: raise InvalidCommandException(responses['!transfer']['nofunds'])
-            if amount <= 0: raise InvalidCommandException(responses['posamt'])
-            if not await verifyValidUser(recipient): raise InvalidCommandException(responses['nouser'])
+            if amount > ledger.data[sender.id]['balance']: raise InvalidCommandException(responses['!transfer']['nofunds'].format(sender.name))
+            if amount <= 0: raise InvalidCommandException(responses['posamt'].format(sender.name))
+            if not await verifyValidUser(recipient): raise InvalidCommandException(responses['nouser'].format(sender.name))
             ledger.addNewUser(recipient)
             ledger.data[sender.id]['balance'] -= amount
             ledger.data[recipient]['balance'] += amount
-            await send(message.channel, responses['!transfer']['success'].format(
+            await sendRich(message.channel, responses['!transfer']['success'].format(
+                sender.name,
                 ledger.data[sender.id]['balance'], 
                 '(Hey, thanks!)' if recipient == '512696929973698582' else ''))
         except InvalidCommandException as e:
-            await send(message.channel, e.value)
+            await sendRich(message.channel, e.value, 0xdd2222)
     
     if message.content.startswith('!top'):
         try:
             beans = [(await client.get_user_info(key), ledger.data[key]['balance']) for key in ledger.data]
             top = sorted(beans, key=lambda tup: tup[1], reverse=True)
-            msg = 'Here\'s the leaderboard:```'
+            msg = ''
             for i in range(0, 5):
                 if i < len(top):
                     user = top[i]
-                    msg += '\n{}. {}: {} beans'.format(i+1, user[0].name, user[1])
-            msg += '```'
-            await send(message.channel, msg)
+                    msg += '\n`{}. {}: {} beans`'.format(i+1, user[0].name, user[1])
+            await sendRich(message.channel, msg)
         except InvalidCommandException as e:
             print(e.value, 'This shouldn\'t have errored!')
             pass
@@ -144,7 +153,7 @@ async def on_message(message):
     if message.content.startswith('!reward'):
         try:
             botsChannel = message.server.get_channel('514095418481704972')
-            if not message.author.bot: raise InvalidCommandException(responses['notbot'], message.channel)
+            if not message.author.bot: raise InvalidCommandException(responses['notbot'].format(sender.name), message.channel)
             command = Command(message, [int, usrid], botsChannel)
             sender = command.sender
             recipient = command.args[1]
@@ -156,12 +165,13 @@ async def on_message(message):
             ledger.data[recipient]['balance'] += amount
             await send(botsChannel, '0,ok')
         except InvalidCommandException as e:
-            await send(e.loc, e.value)
+            if e.loc == message.channel: await sendRich(e.loc, e.value, 0xdd2222)
+            else: await send(e.loc, e.value)
         
     if message.content.startswith('!request'):
         try:
             botsChannel = message.server.get_channel('514095418481704972')
-            if not message.author.bot: raise InvalidCommandException(responses['notbot'], message.channel)
+            if not message.author.bot: raise InvalidCommandException(responses['notbot'].format(sender.name), message.channel)
             command = Command(message, [int, usrid], botsChannel)
             sender = command.sender
             recipient = command.args[1]
@@ -174,12 +184,13 @@ async def on_message(message):
             ledger.data[recipient]['balance'] -= amount
             await send(botsChannel, '0,ok')
         except InvalidCommandException as e:
-            await send(e.loc, e.value)
+            if e.loc == message.channel: await sendRich(e.loc, e.value, 0xdd2222)
+            else: await send(e.loc, e.value)
     
-    if message.content.startswith('!spam.hack'):
-        hackAttempt = True
-    else:
-        hackAttempt = False
+    if message.content.startswith('!test'):
+        pass
+
+    hackAttempt = True if message.content.startswith('!spam.hack') else False
 
     ledger.write()
 
