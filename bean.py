@@ -1,6 +1,7 @@
 import discord
 import json
 import re
+from time import sleep
 
 responses = {
     'nouser': '**{}**, the specified user is not a user on this server.',
@@ -113,7 +114,6 @@ async def on_message(message):
         except InvalidCommandException as e:
             # This command literally cannot be invalid.
             print(e.value, 'This shouldn\'t have errored!')
-            pass
     
     if message.content.startswith('!transfer'):
         try:
@@ -143,12 +143,14 @@ async def on_message(message):
             msg = ''
             for i in range(0, 5):
                 if i < len(top):
-                    user = top[i]
-                    msg += '\n`{}. {}: {} beans`'.format(i+1, user[0].name, user[1])
+                    temp = '\n{}: {}:{} beans'.format(i+1, top[i][0].name, top[i][1])
+                    spaces = ' ' * (max(1, (30 - (len(temp)))))
+                    msg += '\n`{}. {}:'.format(i+1, top[i][0].name)
+                    msg += spaces
+                    msg += '{} beans`'.format(top[i][1])
             await sendRich(message.channel, msg)
         except InvalidCommandException as e:
             print(e.value, 'This shouldn\'t have errored!')
-            pass
         
     if message.content.startswith('!reward'):
         try:
