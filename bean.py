@@ -10,7 +10,7 @@ responses = {
     'posamt': '**{}**, please specify a positive amount.',
     'balance':'**{}**, your balance is {} beans.',
     '!transfer': {
-        'usage': '**{}**, lease enter an amount followed by a mention to the recipient.\nex. `!transfer <amount> <mention>`',
+        'usage': '**{}**, please enter an amount followed by a mention to the recipient.\nex. `!transfer <amount> <mention>`',
         'nofunds': '**{}**, you do not have enough beans to complete the transaction.',
         'success': '**{}**, the transaction was completed successfully. \nYou now have {} beans in your account. {}'
     },
