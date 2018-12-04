@@ -138,6 +138,7 @@ async def on_message(message):
     
     if message.content.startswith('!top'):
         try:
+            beans = []
             for key in ledger.data:
                 user = await client.get_user_info(key)
                 beans.append((user, ledger.data[key]['balance']))
