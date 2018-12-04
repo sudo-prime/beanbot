@@ -138,7 +138,9 @@ async def on_message(message):
     
     if message.content.startswith('!top'):
         try:
-            beans = [(await client.get_user_info(key), ledger.data[key]['balance']) for key in ledger.data]
+            for key in ledger.data:
+                user = await client.get_user_info(key)
+                beans.append((user, ledger.data[key]['balance']))
             top = sorted(beans, key=lambda tup: tup[1], reverse=True)
             msg = ''
             for i in range(0, 5):
