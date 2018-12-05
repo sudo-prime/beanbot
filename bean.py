@@ -1,9 +1,13 @@
 import discord
 import json
-import re
+import re, math
+from datetime import datetime
+from datetime import timedelta
 from time import sleep
 
 responses = {
+    'sprout': '**{}**, you harvest {} beans. Your balance is now {} beans.',
+    'notime': '**{}**, you still have {} hours and {} minutes before your next harvest is ready.',
     'nouser': '**{}**, the specified user is not a user on this server.',
     'notbot': '**{}**, only bots can use this command.',
     'hacker': 'Nice try.',
@@ -33,14 +37,19 @@ class Ledger:
     def __init__(self):
         with open('ledger.json', 'r') as inFile:
             self.data = json.load(inFile)
+            for user in self.data:
+                self.data[user]['lsprout'] = datetime.strptime(self.data[user]['lsprout'], '%Y-%m-%d %H:%M:%S.%f')
     
     def write(self):
         with open('ledger.json', 'w') as outFile:
-            json.dump(self.data, outFile)
+            json.dump(self.data, outFile, default=str)
     
     def addNewUser(self, user):
         if not user in self.data:
-            self.data[user] = {'balance': 100}
+            self.data[user] = {
+                'balance': 100,
+                'lsprout': datetime(1970, 1, 1, 0, 0, 10, 10)
+            }
 
 class Command:
     def __init__(self, message, types, loc=''):
@@ -192,10 +201,32 @@ async def on_message(message):
             if e.loc == message.channel: await sendRich(e.loc, e.value, 0xdd2222)
             else: await send(e.loc, e.value)
     
+    if message.content.startswith('!sprout'):
+        try:
+            # Command !balance takes no vaildation criteria,
+            # and has no anticipated types.
+            command = Command(message, [])
+            sender = command.sender
+            ledger.addNewUser(sender.id)
+            balance = ledger.data[sender.id]['balance']
+            lastSprout = ledger.data[sender.id]['lsprout']
+            delta = datetime.now() - lastSprout
+            if delta < timedelta(days=1):
+                raise InvalidCommandException(responses['notime'].format(sender.name, 
+                    int((timedelta(days=1).total_seconds() - delta.total_seconds()) // 3600),
+                    int(((timedelta(days=1).total_seconds() - delta.total_seconds()) % 3600) // 60)))
+            # User can sprout
+            ledger.data[sender.id]['lsprout'] = datetime.now()
+            newBeans = math.floor(((2 * balance) + 10) ** 0.75)
+            ledger.data[sender.id]['balance'] += newBeans
+            await sendRich(message.channel, responses['sprout'].format(sender.name, newBeans, ledger.data[sender.id]['balance']))
+        except InvalidCommandException as e:
+            await sendRich(message.channel, e.value, 0xdd2222)
+
     if message.content.startswith('!test'):
         pass
 
-    hackAttempt = True if message.content.startswith('!spam.hack') else False
+    hackAttempt = message.content.startswith('!spam.hack')
 
     ledger.write()
 
