@@ -23,6 +23,15 @@ responses = {
     },
     '!request': {
         'usage': '2,bad_args,{}'
+    },
+    '!balance': {
+        'usage': ''
+    },
+    '!sprout': {
+        'usage': ''
+    },
+    '!top': {
+        'usage': ''
     }
 }
 
@@ -60,14 +69,22 @@ class Command:
 
         # Parse the message for tokens.
         tokens = message.content.split(' ')
+        
+        if tokens[0] not in responses:
+            raise InvalidCommandException(None, location)
 
         # Baseline acceptance criteria
         if len(types) > len(tokens)-1:
             # Command must have at least len(criteria) tokens.
+<<<<<<< HEAD
             raise InvalidCommandException(
                 responses[tokens[0]]['usage'].format(self.sender.name),
                 location)
         
+=======
+            raise InvalidCommandException(responses[tokens[0]]['usage'].format(self.sender.name), location)        
+
+>>>>>>> d2abd660416e1de0879d41abcd1cb949529c906b
         # Parse into arguments.
         self.args = []
         for index in range(0, len(types)):
@@ -154,7 +171,7 @@ async def on_message(message):
                 ledger.data[sender.id]['balance'], 
                 '(Hey, thanks!)' if recipient == '512696929973698582' else ''))
         except InvalidCommandException as e:
-            await sendRich(message.channel, e.value, 0xdd2222)
+            if not e.value == None: await sendRich(message.channel, e.value, 0xdd2222)
     
     if message.content.startswith('!top'):
         try:
@@ -196,8 +213,9 @@ async def on_message(message):
             ledger.data[recipient]['balance'] += amount
             await send(botsChannel, '0,ok')
         except InvalidCommandException as e:
-            if e.loc == message.channel: await sendRich(e.loc, e.value, 0xdd2222)
-            else: await send(e.loc, e.value)
+            if not e.value == None:
+                if e.loc == message.channel: await sendRich(e.loc, e.value, 0xdd2222)
+                else: await send(e.loc, e.value)
         
     if message.content.startswith('!request'):
         try:
@@ -222,8 +240,9 @@ async def on_message(message):
             ledger.data[recipient]['balance'] -= amount
             await send(botsChannel, '0,ok')
         except InvalidCommandException as e:
-            if e.loc == message.channel: await sendRich(e.loc, e.value, 0xdd2222)
-            else: await send(e.loc, e.value)
+            if not e.value == None:
+                if e.loc == message.channel: await sendRich(e.loc, e.value, 0xdd2222)
+                else: await send(e.loc, e.value)
     
     if message.content.startswith('!sprout'):
         try:
@@ -245,7 +264,7 @@ async def on_message(message):
             ledger.data[sender.id]['balance'] += newBeans
             await sendRich(message.channel, responses['sprout'].format(sender.name, newBeans, ledger.data[sender.id]['balance']))
         except InvalidCommandException as e:
-            await sendRich(message.channel, e.value, 0xdd2222)
+            if not e.value == None: await sendRich(message.channel, e.value, 0xdd2222)
 
     if message.content.startswith('!test'):
         pass
