@@ -38,7 +38,9 @@ class Ledger:
         with open('ledger.json', 'r') as inFile:
             self.data = json.load(inFile)
             for user in self.data:
-                self.data[user]['lsprout'] = datetime.strptime(self.data[user]['lsprout'], '%Y-%m-%d %H:%M:%S.%f')
+                self.data[user]['lsprout'] = datetime.strptime(
+                    self.data[user]['lsprout'],
+                    '%Y-%m-%d %H:%M:%S.%f')
     
     def write(self):
         with open('ledger.json', 'w') as outFile:
@@ -62,7 +64,9 @@ class Command:
         # Baseline acceptance criteria
         if len(types) > len(tokens)-1:
             # Command must have at least len(criteria) tokens.
-            raise InvalidCommandException(responses[tokens[0]]['usage'].format(self.sender.name), location)
+            raise InvalidCommandException(
+                responses[tokens[0]]['usage'].format(self.sender.name),
+                location)
         
         # Parse into arguments.
         self.args = []
@@ -70,7 +74,9 @@ class Command:
             try:
                 self.args.append(types[index](tokens[index+1]))
             except:
-                raise InvalidCommandException(responses[tokens[0]]['usage'].format(self.sender.name), location)
+                raise InvalidCommandException(
+                    responses[tokens[0]]['usage'].format(self.sender.name),
+                    location)
 
 async def send(location, message):
     global client
@@ -119,7 +125,9 @@ async def on_message(message):
             sender = command.sender
             ledger.addNewUser(sender.id)
             balance = ledger.data[sender.id]['balance']
-            await sendRich(message.channel, responses['balance'].format(sender.name, balance))
+            await sendRich(
+                message.channel, 
+                responses['balance'].format(sender.name, balance))
         except InvalidCommandException as e:
             # This command literally cannot be invalid.
             print(e.value, 'This shouldn\'t have errored!')
@@ -132,9 +140,12 @@ async def on_message(message):
             recipient = command.args[1]
             amount = command.args[0]
             ledger.addNewUser(command.sender.id)
-            if amount > ledger.data[sender.id]['balance']: raise InvalidCommandException(responses['!transfer']['nofunds'].format(sender.name))
-            if amount <= 0: raise InvalidCommandException(responses['posamt'].format(sender.name))
-            if not await verifyValidUser(recipient): raise InvalidCommandException(responses['nouser'].format(sender.name))
+            if amount > ledger.data[sender.id]['balance']:
+                raise InvalidCommandException(responses['!transfer']['nofunds'].format(sender.name))
+            if amount <= 0:
+                raise InvalidCommandException(responses['posamt'].format(sender.name))
+            if not await verifyValidUser(recipient):
+                raise InvalidCommandException(responses['nouser'].format(sender.name))
             ledger.addNewUser(recipient)
             ledger.data[sender.id]['balance'] -= amount
             ledger.data[recipient]['balance'] += amount
@@ -167,14 +178,20 @@ async def on_message(message):
     if message.content.startswith('!reward'):
         try:
             botsChannel = message.server.get_channel('514095418481704972')
-            if not message.author.bot: raise InvalidCommandException(responses['notbot'].format(sender.name), message.channel)
+            if not message.author.bot:
+                raise InvalidCommandException(
+                    responses['notbot'].format(sender.name),
+                    message.channel)
             command = Command(message, [int, usrid], botsChannel)
             sender = command.sender
             recipient = command.args[1]
             amount = command.args[0]
-            if hackAttempt: raise InvalidCommandException(responses['hacker'], message.channel)
-            if amount <= 0: raise InvalidCommandException('2,pos_amt', botsChannel)
-            if not await verifyValidUser(recipient): raise InvalidCommandException('1,no_user', botsChannel)
+            if hackAttempt:
+                raise InvalidCommandException(responses['hacker'], message.channel)
+            if amount <= 0:
+                raise InvalidCommandException('2,pos_amt', botsChannel)
+            if not await verifyValidUser(recipient):
+                raise InvalidCommandException('1,no_user', botsChannel)
             ledger.addNewUser(recipient)
             ledger.data[recipient]['balance'] += amount
             await send(botsChannel, '0,ok')
@@ -185,16 +202,23 @@ async def on_message(message):
     if message.content.startswith('!request'):
         try:
             botsChannel = message.server.get_channel('514095418481704972')
-            if not message.author.bot: raise InvalidCommandException(responses['notbot'].format(sender.name), message.channel)
+            if not message.author.bot:
+                raise InvalidCommandException(
+                    responses['notbot'].format(sender.name),
+                    message.channel)
             command = Command(message, [int, usrid], botsChannel)
             sender = command.sender
             recipient = command.args[1]
             amount = command.args[0]
-            if hackAttempt: raise InvalidCommandException(responses['hacker'], message.channel)
-            if amount <= 0: raise InvalidCommandException('2,pos_amt', botsChannel)
-            if not await verifyValidUser(recipient): raise InvalidCommandException('1,no_user', botsChannel)
+            if hackAttempt:
+                raise InvalidCommandException(responses['hacker'], message.channel)
+            if amount <= 0:
+                raise InvalidCommandException('2,pos_amt', botsChannel)
+            if not await verifyValidUser(recipient):
+                raise InvalidCommandException('1,no_user', botsChannel)
             ledger.addNewUser(recipient)
-            if ledger.data[recipient]['balance'] < amount: raise InvalidCommandException('1,no_funds', botsChannel)
+            if ledger.data[recipient]['balance'] < amount:
+                raise InvalidCommandException('1,no_funds', botsChannel)
             ledger.data[recipient]['balance'] -= amount
             await send(botsChannel, '0,ok')
         except InvalidCommandException as e:
