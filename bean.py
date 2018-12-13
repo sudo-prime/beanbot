@@ -23,15 +23,6 @@ responses = {
     },
     '!request': {
         'usage': '2,bad_args,{}'
-    },
-    '!balance': {
-        'usage': ''
-    },
-    '!sprout': {
-        'usage': ''
-    },
-    '!top': {
-        'usage': ''
     }
 }
 
@@ -63,37 +54,31 @@ class Ledger:
             }
 
 class Command:
-    def __init__(self, message, types, loc=''):
+    def __init__(self, message, types, usage='', loc=''):
+        commands = ['!balance', '!transfer', '!top', '$b', '$t', 
+                    '!reward', '!request', '!sprout']
+
         self.sender = message.author
         location = message.channel if loc == '' else loc
 
         # Parse the message for tokens.
         tokens = message.content.split(' ')
-        
-        if tokens[0] not in responses:
+
+        if tokens[0] not in commands:
             raise InvalidCommandException(None, location)
 
         # Baseline acceptance criteria
-        if len(types) > len(tokens)-1:
+        if len(types) > len(tokens) - 1:
             # Command must have at least len(criteria) tokens.
-<<<<<<< HEAD
-            raise InvalidCommandException(
-                responses[tokens[0]]['usage'].format(self.sender.name),
-                location)
+            raise InvalidCommandException(usage, location)
         
-=======
-            raise InvalidCommandException(responses[tokens[0]]['usage'].format(self.sender.name), location)        
-
->>>>>>> d2abd660416e1de0879d41abcd1cb949529c906b
         # Parse into arguments.
         self.args = []
         for index in range(0, len(types)):
             try:
                 self.args.append(types[index](tokens[index+1]))
             except:
-                raise InvalidCommandException(
-                    responses[tokens[0]]['usage'].format(self.sender.name),
-                    location)
+                raise InvalidCommandException(usage, location)
 
 async def send(location, message):
     global client
@@ -128,13 +113,11 @@ async def on_message(message):
     # Ignore messages sent by beanbot.
     if message.author == client.user:
         return
-    # DEBUG
-    #print(str(message.content))
 
     # Open the ledger for reading and modification.
     ledger = Ledger()
 
-    if message.content.startswith('!balance'):
+    if message.content.startswith('!balance') or message.content.startswith('$b'):
         try:
             # Command !balance takes no vaildation criteria,
             # and has no anticipated types.
@@ -147,12 +130,12 @@ async def on_message(message):
                 responses['balance'].format(sender.name, balance))
         except InvalidCommandException as e:
             # This command literally cannot be invalid.
-            print(e.value, 'This shouldn\'t have errored!')
+            pass
     
     if message.content.startswith('!transfer'):
         try:
             # Anticipate !transfer <int> <user mention>
-            command = Command(message, [int, usrid])
+            command = Command(message, [int, usrid], responses['!transfer']['usage'])
             sender = command.sender
             recipient = command.args[1]
             amount = command.args[0]
@@ -173,8 +156,9 @@ async def on_message(message):
         except InvalidCommandException as e:
             if not e.value == None: await sendRich(message.channel, e.value, 0xdd2222)
     
-    if message.content.startswith('!top'):
+    if message.content.startswith('!top') or message.content.startswith('$t'):
         try:
+            command = Command(message, [])
             beans = []
             for key in ledger.data:
                 user = await client.get_user_info(key)
@@ -184,13 +168,13 @@ async def on_message(message):
             for i in range(0, 5):
                 if i < len(top):
                     temp = '\n{}: {}:{} beans'.format(i+1, top[i][0].name, top[i][1])
-                    spaces = ' ' * (max(1, (30 - (len(temp)))))
+                    spaces = ' ' * (max(1, (31 - (len(temp)))))
                     msg += '\n`{}. {}:'.format(i+1, top[i][0].name)
                     msg += spaces
                     msg += '{} beans`'.format(top[i][1])
             await sendRich(message.channel, msg)
         except InvalidCommandException as e:
-            print(e.value, 'This shouldn\'t have errored!')
+            pass
         
     if message.content.startswith('!reward'):
         try:
@@ -199,7 +183,7 @@ async def on_message(message):
                 raise InvalidCommandException(
                     responses['notbot'].format(sender.name),
                     message.channel)
-            command = Command(message, [int, usrid], botsChannel)
+            command = Command(message, [int, usrid], responses['!reward']['usage'], botsChannel)
             sender = command.sender
             recipient = command.args[1]
             amount = command.args[0]
@@ -224,7 +208,7 @@ async def on_message(message):
                 raise InvalidCommandException(
                     responses['notbot'].format(sender.name),
                     message.channel)
-            command = Command(message, [int, usrid], botsChannel)
+            command = Command(message, [int, usrid], responses['!request']['usage'], botsChannel)
             sender = command.sender
             recipient = command.args[1]
             amount = command.args[0]
@@ -265,9 +249,6 @@ async def on_message(message):
             await sendRich(message.channel, responses['sprout'].format(sender.name, newBeans, ledger.data[sender.id]['balance']))
         except InvalidCommandException as e:
             if not e.value == None: await sendRich(message.channel, e.value, 0xdd2222)
-
-    if message.content.startswith('!test'):
-        pass
 
     hackAttempt = message.content.startswith('!spam.hack')
 
